@@ -2,16 +2,12 @@
  * Service Worker for 100% Offline PWA functionality with Network-First Live OTA Updates (ClassQuant Hub v8)
  */
 
-const CACHE_NAME = 'classquant-hub-v132';
+const CACHE_NAME = 'classquant-lite-v1922';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './version.json',
-  './css/styles.css',
-  './css/kitty-theme.css',
-  './css/sanrio-characters.css',
-  './css/oaa-theme.css',
   './assets/cote/cote_logo.webp',
   './assets/cote/cote_wp_1.jpg',
   './assets/cote/cote_cover.jpg',
@@ -101,36 +97,21 @@ const ASSETS_TO_CACHE = [
   './assets/cote/official/yagami_full.webp',
   './assets/cote/official/yukimura.webp',
   './assets/cote/official/yukimura_full.webp',
-  './js/store.js',
-  './js/timetable.js',
-  './js/statistics.js',
-  './js/charts.js',
-  './js/sortable.min.js',
-  './js/tagManager.js',
-  './js/matrix.js',
-  './js/rosterManager.js',
-  './js/retroLogView.js',
-  './js/eventsLog.js',
-  './js/studentDossier.js',
-  './js/timetableEditor.js',
-  './js/aiImportExport.js',
-  './js/feedbackBoard.js',
-  './js/onboardingTour.js',
-  './js/onboardingWizard.js',
-  './js/userGuide.js',
-  './js/app.js',
-  './data/cloud_config.json',
-  './data/feedback.json',
-  './assets/images/twin_stars.png',
-  './使用指南_圖文說明書.html'
+  './assets/images/twin_stars.png'
 ];
 
 // Install: Cache core assets and immediately activate
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const url of ASSETS_TO_CACHE) {
+        try {
+          await cache.add(url);
+        } catch (e) {
+          console.warn('Pre-cache skip:', url);
+        }
+      }
     })
   );
 });
