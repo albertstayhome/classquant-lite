@@ -5,6 +5,8 @@
 
 html {
   font-size: calc(16px * var(--app-font-scale, 1.08));
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html[data-font-size="standard"] {

@@ -973,34 +973,60 @@ class ClassroomMatrix {
     const activeSlot = this.timetable.detectActiveSlot();
     const period = activeSlot.period !== null ? activeSlot.period : 1;
 
-    let appliedCount = 0;
-    this.selectedSeats.forEach(seatNo => {
-      this.store.addEvent({
-        classId,
-        seatNo,
-        period,
-        tagId: tag.id,
-        tagName: tag.name,
-        category: tag.category,
-        delta: tag.delta,
-        severity: tag.severity,
-        note: `課堂記點：${tag.name}`
+    try {
+      let appliedCount = 0;
+      const seatsToProcess = Array.from(this.selectedSeats);
+
+      seatsToProcess.forEach(seatNo => {
+        this.store.addEvent({
+          classId,
+          seatNo,
+          period,
+          tagId: tag.id,
+          tagName: tag.name,
+          category: tag.category,
+          delta: tag.delta,
+          severity: tag.severity,
+          note: `課堂記點：${tag.name}`
+        });
+
+        this.showFloatingBubble(seatNo, tag.delta);
+        appliedCount++;
+
+        // In-place score update on card targeting character score span (index 2)
+        const card = document.getElementById(`seat-card-${seatNo}`);
+        if (card) {
+          const profile = this.stats ? this.stats.getStudentProfile(classId, seatNo) : null;
+          if (profile) {
+            const charPts = profile.pointsBreakdown.discipline + profile.pointsBreakdown.conflict + profile.pointsBreakdown.social;
+            const scoreSpans = card.querySelectorAll('div > span');
+            if (scoreSpans.length >= 3) {
+              const ptsSpan = scoreSpans[2];
+              ptsSpan.className = charPts > 0 ? 'text-emerald-700' : charPts < 0 ? 'text-rose-700' : 'text-slate-500';
+              ptsSpan.innerText = `${charPts > 0 ? '+' : ''}${charPts}`;
+            } else if (scoreSpans.length >= 2) {
+              const ptsSpan = scoreSpans[1];
+              ptsSpan.className = charPts > 0 ? 'text-emerald-700' : charPts < 0 ? 'text-rose-700' : 'text-slate-500';
+              ptsSpan.innerText = `${charPts > 0 ? '+' : ''}${charPts}`;
+            }
+          }
+        }
       });
 
-      this.showFloatingBubble(seatNo, tag.delta);
-      appliedCount++;
-    });
+      // Sound effect
+      if (tag.delta > 0 && window.appState?.playChime) {
+        window.appState.playChime();
+      } else if (tag.delta < 0 && window.appState?.playWarning) {
+        window.appState.playWarning();
+      }
 
-    // Sound effect
-    if (tag.delta > 0 && window.appState?.playChime) {
-      window.appState.playChime();
-    } else if (tag.delta < 0 && window.appState?.playWarning) {
-      window.appState.playWarning();
+      window.appState.showToast(`⚡ 已為 ${appliedCount} 位同學記錄「${tag.name} (${tag.delta > 0 ? '+' : ''}${tag.delta})」`, 'success');
+    } catch (err) {
+      console.error('[ClassroomMatrix] applyTagToSelected error:', err);
+    } finally {
+      this.clearSelection(classId);
+      this.render('classroom-matrix-view', classId);
     }
-
-    window.appState.showToast(`⚡ 已為 ${appliedCount} 位同學記錄「${tag.name} (${tag.delta > 0 ? '+' : ''}${tag.delta})」`, 'success');
-    this.clearSelection();
-    this.render('classroom-matrix-view', classId);
   }
 
   showFloatingBubble(seatNo, delta) {
@@ -1234,8 +1260,8 @@ class ClassroomMatrix {
           <div class="text-xl font-black mt-1 text-slate-900">${chosenStudent.name}</div>
           
           <div class="flex items-center gap-2 mt-4">
-            <button onclick="matrixView.quickAwardPicker('${classId}', ${chosenStudent.seatNo}, 2, '抽籤解題優異')" class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-black hover:bg-emerald-100 transition shadow-sm">
-              +2 解題優異
+            <button onclick="matrixView.quickAwardPicker('${classId}', ${chosenStudent.seatNo}, 1, '抽籤解題優異')" class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-black hover:bg-emerald-100 transition shadow-sm">
+              +1 解題優異
             </button>
             <button onclick="matrixView.quickAwardPicker('${classId}', ${chosenStudent.seatNo}, -1, '抽籤分心未答')" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-800 border border-rose-300 text-xs font-black hover:bg-rose-100 transition shadow-sm">
               -1 分心/未答

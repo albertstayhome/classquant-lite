@@ -234,6 +234,362 @@ class StudentDossierView {
     if (window.lucide) window.lucide.createIcons();
   }
 
+  // --- 📊 Compute Formative Assessment Points Breakdown by Category and Tag ---
+  computeStudentPointsBreakdown(events) {
+    let academic = { count: 0, delta: 0 };
+    let discipline = { count: 0, delta: 0 };
+    let social = { count: 0, delta: 0 };
+    let conflict = { count: 0, delta: 0 };
+    const tagMap = {};
+
+    events.forEach(e => {
+      const delta = Number(e.delta) || 0;
+      const cat = e.category || 'discipline';
+      if (cat === 'academic' || cat === 'assessment') {
+        academic.count++;
+        academic.delta += delta;
+      } else if (cat === 'social') {
+        social.count++;
+        social.delta += delta;
+      } else if (cat === 'conflict') {
+        conflict.count++;
+        conflict.delta += delta;
+      } else {
+        discipline.count++;
+        discipline.delta += delta;
+      }
+
+      const tagName = e.tagName || (delta > 0 ? '加點' : '扣點');
+      if (!tagMap[tagName]) {
+        tagMap[tagName] = { count: 0, delta: 0, category: cat };
+      }
+      tagMap[tagName].count++;
+      tagMap[tagName].delta += delta;
+    });
+
+    const tagsList = Object.entries(tagMap).map(([name, data]) => ({
+      name,
+      ...data
+    })).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta) || b.count - a.count);
+
+    return {
+      academic,
+      discipline,
+      social,
+      conflict,
+      totalDelta: academic.delta + discipline.delta + social.delta + conflict.delta,
+      totalCount: events.length,
+      tagsList
+    };
+  }
+
+  // --- 📊 Render Formative Assessment & Cumulative Breakdown Card ---
+  renderPointsBreakdownSection(events, isOAA) {
+    const data = this.computeStudentPointsBreakdown(events);
+    const { academic, discipline, social, conflict, totalDelta, totalCount, tagsList } = data;
+
+    if (isOAA) {
+      return `
+        <!-- Formative Assessment & Cumulative Breakdown Card (OAA Mode) -->
+        <div class="rounded-3xl p-5 sm:p-6 bg-[#200b17] border-2 border-amber-500/50 text-white mb-6 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-amber-500/30">
+            <div class="flex items-center space-x-2.5">
+              <span class="text-xl">📊</span>
+              <div>
+                <h3 class="text-base sm:text-lg font-black tracking-wide text-amber-200">
+                  平時成績加扣分累計總表 (日常考評)
+                </h3>
+                <p class="text-xs text-amber-300/80">各向度與細項標籤加減分彙整 • 供平時成績結算與日常評量核算參照</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-3 py-1 rounded-xl bg-[#2d0f19] text-amber-300 border border-amber-500/60 font-mono font-black text-xs">
+                累計記錄：${totalCount} 筆
+              </span>
+              <span class="px-3 py-1 rounded-xl font-mono font-black text-xs ${totalDelta >= 0 ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60' : 'bg-rose-950 text-rose-300 border border-rose-500/60'}">
+                淨計點：${totalDelta > 0 ? '+' : ''}${totalDelta} 點
+              </span>
+            </div>
+          </div>
+
+          <!-- 4 Main Dimensions Overview Grid -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div class="p-3.5 rounded-2xl bg-[#2a0e1e]/90 border border-blue-500/40 flex flex-col justify-between">
+              <div class="flex items-center justify-between text-xs font-bold text-cyan-300 mb-1">
+                <span>📘 課堂學業表現</span>
+                <span class="text-[10px] opacity-80">${academic.count} 次</span>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono text-cyan-200">
+                ${academic.delta > 0 ? '+' : ''}${academic.delta} <span class="text-xs font-sans text-cyan-400">分</span>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-[#2a0e1e]/90 border border-pink-500/40 flex flex-col justify-between">
+              <div class="flex items-center justify-between text-xs font-bold text-pink-300 mb-1">
+                <span>🎀 生活常規表現</span>
+                <span class="text-[10px] opacity-80">${discipline.count} 次</span>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono text-pink-200">
+                ${discipline.delta > 0 ? '+' : ''}${discipline.delta} <span class="text-xs font-sans text-pink-400">分</span>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-[#2a0e1e]/90 border border-emerald-500/40 flex flex-col justify-between">
+              <div class="flex items-center justify-between text-xs font-bold text-emerald-300 mb-1">
+                <span>🤝 團隊協作服務</span>
+                <span class="text-[10px] opacity-80">${social.count} 次</span>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono text-emerald-200">
+                ${social.delta > 0 ? '+' : ''}${social.delta} <span class="text-xs font-sans text-emerald-400">分</span>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-[#2a0e1e]/90 border border-rose-500/40 flex flex-col justify-between">
+              <div class="flex items-center justify-between text-xs font-bold text-rose-300 mb-1">
+                <span>⚠️ 違規與同儕衝突</span>
+                <span class="text-[10px] opacity-80">${conflict.count} 次</span>
+              </div>
+              <div class="text-xl sm:text-2xl font-black font-mono text-rose-200">
+                ${conflict.delta > 0 ? '+' : ''}${conflict.delta} <span class="text-xs font-sans text-rose-400">分</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Specific Tag Frequency Breakdown -->
+          <div>
+            <h4 class="text-xs font-black text-amber-300 mb-2 flex items-center gap-1.5">
+              <span>🏷️ 各項標籤累積明細（依權重排序）</span>
+            </h4>
+            ${tagsList.length === 0 ? `
+              <p class="text-xs text-slate-400 italic py-2">目前尚無加扣點標籤紀錄，日常表現穩定。</p>
+            ` : `
+              <div class="flex flex-wrap gap-2">
+                ${tagsList.map(t => `
+                  <div class="px-3 py-1.5 rounded-xl border flex items-center gap-2 text-xs font-bold ${
+                    t.delta > 0 
+                      ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/50' 
+                      : t.delta < 0 
+                        ? 'bg-rose-950/70 text-rose-300 border-rose-500/50' 
+                        : 'bg-[#2a0e1e] text-slate-300 border-slate-600'
+                  }">
+                    <span class="font-black">${t.name}</span>
+                    <span class="text-[11px] opacity-80 font-mono">×${t.count}</span>
+                    <span class="px-1.5 py-0.5 rounded font-mono font-black text-xs ${
+                      t.delta > 0 ? 'bg-emerald-900 text-emerald-200' : t.delta < 0 ? 'bg-rose-900 text-rose-200' : 'bg-slate-800 text-slate-300'
+                    }">
+                      ${t.delta > 0 ? '+' : ''}${t.delta}分
+                    </span>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    // Default Sanrio Mode
+    return `
+      <!-- Formative Assessment & Cumulative Breakdown Card (Sanrio Mode) -->
+      <div class="glass-card rounded-3xl p-5 sm:p-6 mb-6 border border-pink-200 bg-white shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-pink-100">
+          <div class="flex items-center space-x-2.5">
+            <span class="kitty-bow !w-4 !h-4"></span>
+            <div>
+              <h3 class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-1.5">
+                📊 平時成績加扣分累計總表 (日常考評)
+              </h3>
+              <p class="text-xs text-slate-500 font-medium">清楚彙整各向度與標籤明細 • 供導師平時成績結算與親師訪談參照</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-xl bg-pink-50 text-pink-700 border border-pink-200 font-bold text-xs">
+              累計事件：${totalCount} 筆
+            </span>
+            <span class="px-3 py-1 rounded-xl font-black text-xs ${totalDelta >= 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-rose-50 text-rose-800 border border-rose-300'}">
+              淨加扣點：${totalDelta > 0 ? '+' : ''}${totalDelta} 點
+            </span>
+          </div>
+        </div>
+
+        <!-- 4 Main Dimensions Overview Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div class="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-xs font-bold text-blue-700 mb-1">
+              <span>📘 課堂學業加分</span>
+              <span class="text-[10px] text-blue-500">${academic.count} 次</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono text-blue-800">
+              ${academic.delta > 0 ? '+' : ''}${academic.delta} <span class="text-xs font-sans text-blue-600">分</span>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-pink-50/70 border border-pink-200 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-xs font-bold text-pink-700 mb-1">
+              <span>🎀 生活常規加分</span>
+              <span class="text-[10px] text-pink-500">${discipline.count} 次</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono text-pink-800">
+              ${discipline.delta > 0 ? '+' : ''}${discipline.delta} <span class="text-xs font-sans text-pink-600">分</span>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-xs font-bold text-emerald-700 mb-1">
+              <span>🤝 團隊協作服務</span>
+              <span class="text-[10px] text-emerald-500">${social.count} 次</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono text-emerald-800">
+              ${social.delta > 0 ? '+' : ''}${social.delta} <span class="text-xs font-sans text-emerald-600">分</span>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200 flex flex-col justify-between">
+            <div class="flex items-center justify-between text-xs font-bold text-rose-700 mb-1">
+              <span>⚠️ 違規與衝突扣分</span>
+              <span class="text-[10px] text-rose-500">${conflict.count} 次</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black font-mono text-rose-800">
+              ${conflict.delta > 0 ? '+' : ''}${conflict.delta} <span class="text-xs font-sans text-rose-600">分</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Specific Tag Frequency Breakdown -->
+        <div>
+          <h4 class="text-xs font-black text-slate-700 mb-2 flex items-center gap-1">
+            <span>🏷️ 各項標籤累積明細（依總分排序）</span>
+          </h4>
+          ${tagsList.length === 0 ? `
+            <p class="text-xs text-slate-400 italic py-2">目前尚無加扣點標籤紀錄，日常表現穩定。</p>
+          ` : `
+            <div class="flex flex-wrap gap-2">
+              ${tagsList.map(t => `
+                <div class="px-3 py-1.5 rounded-xl border flex items-center gap-2 text-xs font-bold ${
+                  t.delta > 0 
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                    : t.delta < 0 
+                      ? 'bg-rose-50 text-rose-800 border-rose-200' 
+                      : 'bg-slate-50 text-slate-700 border-slate-200'
+                }">
+                  <span class="font-black text-slate-900">${t.name}</span>
+                  <span class="text-[11px] text-slate-500 font-mono">×${t.count}次</span>
+                  <span class="px-1.5 py-0.5 rounded font-mono font-black text-xs ${
+                    t.delta > 0 ? 'bg-emerald-100 text-emerald-800' : t.delta < 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-slate-700'
+                  }">
+                    ${t.delta > 0 ? '+' : ''}${t.delta}分
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
+  // --- 🌟 Evolution & Title Promotion Criteria Modal ---
+  openEvolutionGuideModal() {
+    const modal = document.getElementById('global-modal');
+    const modalContent = document.getElementById('global-modal-content');
+    if (!modal || !modalContent) return;
+
+    const isOAA = this.isOAAMode();
+
+    modalContent.innerHTML = `
+      <div class="p-5 sm:p-6 max-h-[85vh] overflow-y-auto animate-fade-in-up ${isOAA ? 'bg-[#1e0a16] text-white' : 'bg-white text-slate-900'}">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b ${isOAA ? 'border-amber-500/40' : 'border-pink-200'}">
+          <div class="flex items-center space-x-2.5">
+            <span class="text-2xl">🌟</span>
+            <div>
+              <h3 class="font-black text-base sm:text-lg ${isOAA ? 'text-amber-200' : 'text-slate-900'}">
+                稱號升階與角色進化條件說明
+              </h3>
+              <p class="text-xs ${isOAA ? 'text-amber-300/80' : 'text-slate-500'}">掌握學業與常規成長門檻，解鎖高階角色與專屬榮譽立繪！</p>
+            </div>
+          </div>
+          <button onclick="appState.closeModal()" class="w-8 h-8 rounded-full ${isOAA ? 'bg-rose-950 text-amber-300 hover:bg-rose-900' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'} flex items-center justify-center font-black transition cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        <div class="space-y-4 text-xs sm:text-sm leading-relaxed">
+          <!-- Sanrio Mode Rules -->
+          <div class="p-4 rounded-2xl border ${isOAA ? 'bg-[#290e1d] border-pink-500/30' : 'bg-pink-50/70 border-pink-200'}">
+            <h4 class="font-black text-pink-600 sm:text-base flex items-center gap-1.5 mb-2.5">
+              <span>🌸 三麗鷗主題模式晉升階梯</span>
+            </h4>
+            <div class="space-y-2.5">
+              <div class="flex items-start gap-2.5">
+                <div class="sanrio-twinstars-badge !w-7 !h-7 shrink-0 mt-0.5"></div>
+                <div>
+                  <strong class="text-purple-700">🌟 小雙星（優良拔尖 / 進步之星）</strong>
+                  <p class="text-xs ${isOAA ? 'text-slate-300' : 'text-slate-600'} mt-0.5">
+                    <strong>晉級條件</strong>：學業均分達 <strong>80 分以上</strong> 且品格常規無負分；或近期歷次小考呈現高速成長趨勢（進步斜率 ≥ +1.5）！
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-2.5">
+                <div class="sanrio-kitty-badge !w-7 !h-7 shrink-0 mt-0.5"></div>
+                <div>
+                  <strong class="text-pink-700">🎀 Hello Kitty（穩健良好）</strong>
+                  <p class="text-xs ${isOAA ? 'text-slate-300' : 'text-slate-600'} mt-0.5">
+                    <strong>基準條件</strong>：學業均分在 <strong>60 ~ 79 分</strong> 之間，且品格常規點數保持正向（≥ 0 點）。
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-2.5">
+                <div class="sanrio-kuromi-badge !w-7 !h-7 shrink-0 mt-0.5"></div>
+                <div>
+                  <strong class="text-slate-700">🖤 酷洛米（警示關懷 / 調皮提醒）</strong>
+                  <p class="text-xs ${isOAA ? 'text-slate-300' : 'text-slate-600'} mt-0.5">
+                    <strong>關懷條件</strong>：品格常規淨點數為負數（有違規或衝突待補救），或學業均分低於 60 分。
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OAA Mode Rules -->
+          <div class="p-4 rounded-2xl border ${isOAA ? 'bg-[#290e1d] border-amber-500/40' : 'bg-slate-50 border-slate-200'}">
+            <h4 class="font-black text-amber-500 sm:text-base flex items-center gap-1.5 mb-2.5">
+              <span>🏛️ 高度育成 OAA 實力至上主義模式階梯</span>
+            </h4>
+            <div class="space-y-2 text-xs ${isOAA ? 'text-amber-100/90' : 'text-slate-700'}">
+              <p>
+                <strong>🏆 角色立繪分配機制</strong>：<br>
+                系統依據全班男女學生個別的<strong>「綜合實力天梯排名」</strong>動態分派 35 位動漫正式立繪：
+              </p>
+              <ul class="list-disc pl-5 space-y-1 text-xs">
+                <li><strong>男生榜首 (Rank 1)</strong>：解鎖 白室最強 • <strong>綾小路 清隆</strong></li>
+                <li><strong>女生榜首 (Rank 1)</strong>：解鎖 A班司令塔 • <strong>坂柳 有栖</strong></li>
+                <li><strong>男生第 2 名</strong>：解鎖 自由實力者 • <strong>高圓寺 六助</strong></li>
+                <li><strong>女生第 2 名</strong>：解鎖 B班核心天使 • <strong>一之瀨 帆波</strong></li>
+                <li><strong>男生第 3 名</strong>：解鎖 C班獨裁霸者 • <strong>龍園 翔</strong></li>
+                <li><strong>女生第 3 名</strong>：解鎖 堅毅領袖 • <strong>堀北 鈴音</strong></li>
+              </ul>
+              <div class="mt-2 pt-2 border-t ${isOAA ? 'border-amber-500/20' : 'border-slate-200'}">
+                <strong>🎖️ 硬核評估卡階規則</strong>：
+                綜合實力達 90 分 (S 級) 者，若學力未達 85 分或紀律未達 75 分，將受實力至上考核機制強制卡階於 A+，激勵全方位均衡發展！
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 text-right">
+          <button type="button" onclick="appState.closeModal()" class="px-5 py-2 rounded-xl ${isOAA ? 'bg-gradient-to-r from-amber-600 to-rose-700 text-white border border-amber-400 font-black' : 'bg-slate-900 text-white font-bold'} text-xs transition shadow-sm active:scale-95 cursor-pointer">
+            了解，關閉說明
+          </button>
+        </div>
+      </div>
+    `;
+
+    modal.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   // --- 🌸 Mode 1: Default Sanrio Mode ---
   renderDefaultMode(container, student, classes, students, profile, events, oaa) {
     const characterPoints = profile ? profile.pointsBreakdown.discipline + profile.pointsBreakdown.conflict + profile.pointsBreakdown.social : 0;
@@ -267,13 +623,17 @@ class StudentDossierView {
               </span>
             </div>
             
-            <div class="flex flex-wrap items-center gap-3 text-xs sm:text-sm mt-1.5 font-bold">
+            <div class="flex flex-wrap items-center gap-2.5 text-xs sm:text-sm mt-1.5 font-bold">
               <span class="px-2.5 py-0.5 rounded-lg badge-academic">
                 📘 學業均分: <strong class="text-blue-700 font-black text-sm">${profile.scoreMean}</strong> 分
               </span>
               <span class="px-2.5 py-0.5 rounded-lg ${characterPoints >= 0 ? 'badge-character-pos' : 'badge-character-neg'}">
                 🎀 品格常規: <strong class="${characterPoints >= 0 ? 'text-pink-700' : 'text-rose-700'} font-black text-sm">${characterPoints > 0 ? '+' : ''}${characterPoints}</strong> 點
               </span>
+              <button type="button" onclick="studentDossierView.openEvolutionGuideModal()" class="px-2.5 py-0.5 rounded-lg bg-pink-100/80 hover:bg-pink-200 text-pink-800 border border-pink-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="查看稱號晉升條件">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-pink-600"></i>
+                <span>稱號晉升條件</span>
+              </button>
             </div>
           </div>
         </div>
@@ -295,6 +655,9 @@ class StudentDossierView {
           </select>
         </div>
       </div>
+
+      <!-- 🎯 Formative Assessment & Cumulative Points Breakdown Card -->
+      ${this.renderPointsBreakdownSection(events, false)}
 
       <!-- Main Visuals (Radar + EWMA Curve) -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -413,7 +776,13 @@ class StudentDossierView {
             <h2 class="text-base sm:text-lg font-black tracking-wider text-amber-200 uppercase">
               OAA 學生綜合能力評估卡
             </h2>
-            <p class="text-[11px] text-amber-300/80">高度育成高等學校 官方學生檔案</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <p class="text-[11px] text-amber-300/80">高度育成高等學校 官方學生檔案</p>
+              <button type="button" onclick="studentDossierView.openEvolutionGuideModal()" class="px-2 py-0.5 rounded-lg bg-[#190712] hover:bg-rose-950 text-amber-300 border border-amber-500/50 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer" title="查看實力晉階與卡階規則">
+                <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i>
+                <span>實力晉階規則</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -590,6 +959,9 @@ class StudentDossierView {
           </div>
         </div>
       </div>
+
+      <!-- Formative Assessment Points Breakdown (平時成績加扣分累計總表) -->
+      ${this.renderPointsBreakdownSection(events, true)}
 
       <!-- OAA Dimension Source Inspector (Transparency) -->
       <div class="rounded-2xl p-5 bg-[#200b17] border border-amber-500/50 text-white mb-6">

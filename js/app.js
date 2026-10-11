@@ -12,7 +12,7 @@ class AppState {
     this.deferredPrompt = null;
     this.isHeaderCollapsed = false;
     this.audioCtx = null;
-    this.appVersion = '1.9.21';
+    this.appVersion = '1.9.22';
 
     // Official COTE Terminal Quotes Database for Easter Egg
     this.coteTerminalQuotes = [
@@ -497,6 +497,9 @@ class AppState {
       this.updateNetworkBadge(true);
       this.showToast('網路連線已恢復 🌐', 'success');
       this.checkForUpdates(true);
+      if (window.feedbackBoard) {
+        window.feedbackBoard.syncFeedbacks(true);
+      }
     });
     window.addEventListener('offline', () => {
       this.updateNetworkBadge(false);
@@ -512,6 +515,9 @@ class AppState {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         this.checkForUpdates(true);
+        if (window.feedbackBoard) {
+          window.feedbackBoard.syncFeedbacks(true);
+        }
       }
     });
 
@@ -1798,6 +1804,7 @@ class AppState {
       window.aiHub.render('ai-hub-view');
     } else if (this.activeTab === 'feedback-board' && window.feedbackBoard) {
       window.feedbackBoard.render('feedback-board-view');
+      window.feedbackBoard.syncFeedbacks(true);
     } else if (this.activeTab === 'guide') {
       window.userGuideView.render('user-guide-view');
     }

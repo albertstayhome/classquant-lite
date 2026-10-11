@@ -107,7 +107,7 @@ class RetroLogView {
               <div class="flex flex-wrap items-center justify-between gap-2 mb-3.5 pb-2.5 border-b border-pink-100">
                 <div class="flex items-center space-x-2">
                   <span class="text-xs sm:text-sm font-black text-slate-900">👥 選取補記學生</span>
-                  <span class="text-xs font-black px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-300">
+                  <span id="retro-selected-badge" class="text-xs font-black px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 border border-pink-300">
                     已選取 ${this.selectedSeats.size} 人
                   </span>
                 </div>
@@ -166,13 +166,13 @@ class RetroLogView {
               <div>
                 <label class="block text-xs font-black text-slate-800 mb-1.5 flex items-center justify-between">
                   <span>🏷️ 選擇課堂記點標籤</span>
-                  <span class="text-[11px] font-bold ${this.customDelta > 0 ? 'text-emerald-600' : this.customDelta < 0 ? 'text-rose-600' : 'text-slate-500'}">
+                  <span id="retro-delta-header" class="text-[11px] font-bold ${this.customDelta > 0 ? 'text-emerald-600' : this.customDelta < 0 ? 'text-rose-600' : 'text-slate-500'}">
                     分值：${this.customDelta > 0 ? '+' : ''}${this.customDelta} 分
                   </span>
                 </label>
                 <div class="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto pr-1">
                   ${tags.map(t => `
-                    <button type="button" onclick="retroLogView.selectTag('${t.id}')" 
+                    <button type="button" id="retro-tag-btn-${t.id}" onclick="retroLogView.selectTag('${t.id}')" 
                       class="p-2 rounded-xl text-left border text-xs font-black transition flex items-center justify-between ${
                         this.selectedTagId === t.id 
                           ? 'bg-pink-100 text-pink-900 border-pink-400 shadow-sm' 
@@ -193,7 +193,7 @@ class RetroLogView {
                   <label class="text-xs font-black text-slate-700">⚡ 調整給分：</label>
                   <div class="flex items-center gap-1">
                     <button type="button" onclick="retroLogView.adjustDelta(-1)" class="w-6 h-6 rounded-lg bg-rose-100 text-rose-800 font-black text-xs hover:bg-rose-200">-</button>
-                    <span class="font-mono font-black text-xs px-2 py-0.5 rounded-lg border ${this.customDelta > 0 ? 'color-rule-pos-badge' : this.customDelta < 0 ? 'color-rule-neg-badge' : 'color-rule-zero-badge'}">
+                    <span id="retro-delta-badge" class="font-mono font-black text-xs px-2 py-0.5 rounded-lg border ${this.customDelta > 0 ? 'color-rule-pos-badge' : this.customDelta < 0 ? 'color-rule-neg-badge' : 'color-rule-zero-badge'}">
                       ${this.customDelta > 0 ? '+' : ''}${this.customDelta}
                     </span>
                     <button type="button" onclick="retroLogView.adjustDelta(1)" class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 font-black text-xs hover:bg-emerald-200">+</button>
@@ -228,7 +228,7 @@ class RetroLogView {
               <button id="retro-submit-btn" onclick="retroLogView.submitBatch()" 
                 class="w-full py-3.5 rounded-2xl font-black text-white bg-gradient-to-r from-amber-500 via-pink-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 shadow-lg shadow-pink-500/25 transition text-sm flex items-center justify-center gap-2 active:scale-95">
                 <span class="kitty-bow !w-4 !h-4"></span>
-                <span>✨ 立即 1 鍵批次補記 (${this.selectedSeats.size} 位學生)</span>
+                <span id="retro-submit-btn-text">✨ 立即 1 鍵批次補記 (${this.selectedSeats.size} 位學生)</span>
               </button>
 
             </div>
@@ -303,6 +303,57 @@ class RetroLogView {
     this.selectedPeriod = parseInt(period, 10);
   }
 
+  updateSelectionUI() {
+    const students = this.store.getStudents(this.currentClassId);
+    students.forEach(s => {
+      const el = document.getElementById(`retro-student-${s.seatNo}`);
+      if (el) {
+        const isSelected = this.selectedSeats.has(s.seatNo);
+        if (isSelected) {
+          el.className = "cursor-pointer p-2.5 rounded-2xl border transition-all text-center select-none active:scale-95 bg-pink-500 text-white border-pink-600 shadow-md transform scale-[1.02] font-black";
+          const sub = el.querySelector('.font-mono:last-child');
+          if (sub) sub.className = "text-[10px] mt-1 font-mono text-pink-100";
+        } else {
+          el.className = "cursor-pointer p-2.5 rounded-2xl border transition-all text-center select-none active:scale-95 bg-white hover:bg-pink-50/60 border-pink-200 text-slate-800 font-bold";
+          const sub = el.querySelector('.font-mono:last-child');
+          if (sub) sub.className = "text-[10px] mt-1 font-mono text-slate-500";
+        }
+      }
+    });
+
+    const badge = document.getElementById('retro-selected-badge');
+    if (badge) badge.innerText = `已選取 ${this.selectedSeats.size} 人`;
+
+    const btnText = document.getElementById('retro-submit-btn-text');
+    if (btnText) btnText.innerText = `✨ 立即 1 鍵批次補記 (${this.selectedSeats.size} 位學生)`;
+  }
+
+  updateTagUI() {
+    const tags = this.store.getTagsSortedByClassFrequency(this.currentClassId);
+    tags.forEach(t => {
+      const btn = document.getElementById(`retro-tag-btn-${t.id}`);
+      if (btn) {
+        if (this.selectedTagId === t.id) {
+          btn.className = "p-2 rounded-xl text-left border text-xs font-black transition flex items-center justify-between bg-pink-100 text-pink-900 border-pink-400 shadow-sm";
+        } else {
+          btn.className = "p-2 rounded-xl text-left border text-xs font-black transition flex items-center justify-between bg-slate-50 hover:bg-pink-50 text-slate-700 border-slate-200";
+        }
+      }
+    });
+
+    const deltaHeader = document.getElementById('retro-delta-header');
+    if (deltaHeader) {
+      deltaHeader.className = `text-[11px] font-bold ${this.customDelta > 0 ? 'text-emerald-600' : this.customDelta < 0 ? 'text-rose-600' : 'text-slate-500'}`;
+      deltaHeader.innerText = `分值：${this.customDelta > 0 ? '+' : ''}${this.customDelta} 分`;
+    }
+
+    const deltaBadge = document.getElementById('retro-delta-badge');
+    if (deltaBadge) {
+      deltaBadge.className = `font-mono font-black text-xs px-2 py-0.5 rounded-lg border ${this.customDelta > 0 ? 'color-rule-pos-badge' : this.customDelta < 0 ? 'color-rule-neg-badge' : 'color-rule-zero-badge'}`;
+      deltaBadge.innerText = `${this.customDelta > 0 ? '+' : ''}${this.customDelta}`;
+    }
+  }
+
   toggleSeat(seatNo) {
     if (this.selectedSeats.has(seatNo)) {
       this.selectedSeats.delete(seatNo);
@@ -310,20 +361,20 @@ class RetroLogView {
       this.selectedSeats.add(seatNo);
     }
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateSelectionUI();
   }
 
   selectAll() {
     const students = this.store.getStudents(this.currentClassId);
     students.forEach(s => this.selectedSeats.add(s.seatNo));
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateSelectionUI();
   }
 
   selectNone() {
     this.selectedSeats.clear();
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateSelectionUI();
   }
 
   selectGender(gender) {
@@ -337,7 +388,7 @@ class RetroLogView {
       }
     });
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateSelectionUI();
   }
 
   selectOdd() {
@@ -345,7 +396,7 @@ class RetroLogView {
     const students = this.store.getStudents(this.currentClassId);
     students.filter(s => s.seatNo % 2 !== 0).forEach(s => this.selectedSeats.add(s.seatNo));
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateSelectionUI();
   }
 
   selectEven() {
@@ -353,23 +404,23 @@ class RetroLogView {
     const students = this.store.getStudents(this.currentClassId);
     students.filter(s => s.seatNo % 2 === 0).forEach(s => this.selectedSeats.add(s.seatNo));
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateSelectionUI();
   }
 
   selectTag(tagId) {
     this.selectedTagId = tagId;
-    const tag = this.store.getTags().find(t => t.id === tagId);
+    const tag = this.store.getTags(this.currentClassId).find(t => t.id === tagId);
     if (tag) {
       this.customDelta = tag.delta;
     }
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateTagUI();
   }
 
   adjustDelta(diff) {
     this.customDelta += diff;
     if (window.appState?.playPop) window.appState.playPop();
-    this.render('retro-log-view');
+    this.updateTagUI();
   }
 
   applyTemplate(text) {
