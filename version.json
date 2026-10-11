@@ -2,7 +2,7 @@
   "version": "1.9.22",
   "buildNumber": 2026100401,
   "releaseDate": "2026-10-04",
-  "appName": "ClassQuant Hub",
+  "appName": "ClassQuant Lite",
   "releaseNotes": [
     "1. 【師生互動留言板雙向全自動同步】全面升級師生留言板同步系統，新增本機測試伺服器即時寫入 API (POST /api/feedback) 與 Google Apps Script (Google 試算表) 雲端雙向串接。手機發布留言或回覆自動持久化至專案中，免手動匯出複製。",
     "2. 【網路連線與分頁喚醒即時同步】App 監聽網路連線恢復 (online)、視窗前台喚醒 (visibilitychange) 及切換至留言板分頁時，自動無感背景同步最新留言與回覆。",
