@@ -2748,6 +2748,10 @@ class Store {
     return this.data.events.filter(e => e.classId === classId);
   }
 
+  getEventsByClass(classId = null) {
+    return this.getEvents(classId);
+  }
+
   getAssessments(classId) {
     return this.data.assessments[classId] || [];
   }
@@ -6494,7 +6498,7 @@ class RosterManager {
       }
     }
 
-    const classEvents = this.store.getEventsByClass(this.currentClassId) || [];
+    const classEvents = (this.store.getEvents ? this.store.getEvents(this.currentClassId) : []) || [];
     const isOAA = window.appStore && window.appStore.getTheme() === 'oaa';
 
     container.innerHTML = `
@@ -7071,7 +7075,7 @@ class RosterManager {
     if (!modal || !modalContent || !student) return;
 
     const isOAA = window.appStore && window.appStore.getTheme() === 'oaa';
-    const classEvents = this.store.getEventsByClass(classId) || [];
+    const classEvents = (this.store.getEvents ? this.store.getEvents(classId) : []) || [];
     const studentEvents = classEvents.filter(e => e.seatNo === seatNo);
     const currentPts = studentEvents.reduce((sum, e) => sum + (Number(e.delta) || 0), 0);
     const tags = this.store.getTags(classId) || [];
